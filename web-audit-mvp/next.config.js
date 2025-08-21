@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   reactStrictMode: true,
   // Configure webpack to handle certain dependencies
   webpack: (config, { isServer }) => {
