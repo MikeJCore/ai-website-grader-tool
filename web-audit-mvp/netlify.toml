@@ -1,0 +1,10 @@
+# This file contains the build settings for your Netlify site.
+# It ensures that Netlify uses the correct command to build your Next.js site
+# and knows where to find the output files.
+
+[build]
+  # The command to build your site
+  command = "next build"
+
+  # The directory where the built site is located
+  publish = ".next"
