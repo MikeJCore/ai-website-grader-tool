@@ -13,6 +13,13 @@ export interface PillarResult {
   insights: string[];
 }
 
+export interface AuditInsights {
+  generatedAt: Date;
+  insights: string[];
+  recommendations: string[];
+  summary?: string;
+}
+
 export interface AuditResults {
   id: string;
   url: string;
@@ -25,6 +32,8 @@ export interface AuditResults {
   };
   overallScore: number;
   recommendations: string[];
+  aiAnalysis?: AuditInsights;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
 }
 
 export interface AuditRequest {

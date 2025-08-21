@@ -1,68 +1,42 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import lighthouse from 'lighthouse';
-import * as chromeLauncher from 'chrome-launcher';
-import { AuditRequest, AuditResults } from '@/types/audit';
+import type { AuditResults } from '@/types/audit';
+import { launchChrome, getLighthouseConfig, processCategory, calculateOverallScore } from '@/lib/lighthouse';
+import { validateAuditRequest, sanitizeUrl } from '@/lib/validation';
+
+// Maximum time to wait for Lighthouse to complete (in milliseconds)
+const LIGHTHOUSE_TIMEOUT = 120000; // 2 minutes
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const { url, options }: AuditRequest = await request.json();
+    // Parse and validate request body
+    const body = await request.json();
+    const { url, options } = validateAuditRequest(body);
     
-    if (!url) {
-      return NextResponse.json(
-        { error: 'URL is required' },
-        { status: 400 }
-      );
-    }
-
+    // Sanitize URL and ensure it has a protocol
+    const sanitizedUrl = sanitizeUrl(url);
+    
     // Launch Chrome
-    const chrome = await chromeLauncher.launch({
-      chromeFlags: [
-        '--headless',
-        '--no-sandbox',
-        '--disable-gpu',
-        '--disable-dev-shm-usage',
-        '--disable-software-rasterizer',
-        '--mute-audio',
-        '--remote-debugging-port=9222',
-      ],
-    });
-
+    const chrome = await launchChrome();
+    
     try {
-      // Run Lighthouse
-      const result = await lighthouse(
-        url,
-        {
+      // Configure Lighthouse
+      const config = getLighthouseConfig(options);
+      
+      // Run Lighthouse with timeout
+      const result = await Promise.race([
+        lighthouse(sanitizedUrl, {
           port: chrome.port,
           output: 'json',
           logLevel: 'info',
-        },
-        {
-          extends: 'lighthouse:default',
-          settings: {
-            formFactor: options?.device === 'mobile' ? 'mobile' : 'desktop',
-            throttling: options?.throttling
-              ? {
-                  rttMs: 40,
-                  throughputKbps: 10240,
-                  cpuSlowdownMultiplier: 1,
-                  requestLatencyMs: 0,
-                  downloadThroughputKbps: 0,
-                  uploadThroughputKbps: 0,
-                }
-              : {},
-            screenEmulation: {
-              mobile: options?.device === 'mobile',
-              width: options?.device === 'mobile' ? 375 : 1350,
-              height: options?.device === 'mobile' ? 667 : 940,
-              deviceScaleFactor: 1,
-              disabled: false,
-            },
-          },
-        }
-      );
+        }, config),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Lighthouse audit timed out')), LIGHTHOUSE_TIMEOUT)
+        )
+      ]) as any; // Type assertion since Promise.race loses type info
 
       // Process Lighthouse results
       const lhr = result?.lhr;
@@ -70,96 +44,82 @@ export async function POST(request: NextRequest) {
         throw new Error('No Lighthouse results returned');
       }
 
-      // Process metrics into our format
-      const processMetrics = (category: any) => {
-        if (!category || !category.auditRefs) return [];
-        
-        return category.auditRefs
-          .filter((ref: any) => ref.weight >= 1) // Only include audits with weight
-          .map((ref: any) => {
-            const audit = lhr.audits[ref.id];
-            if (!audit) return null;
-            
-            // Convert score to 0-5 scale
-            const score = audit.score !== null ? audit.score * 5 : 0;
-            
-            return {
-              name: audit.title,
-              score,
-              value: audit.numericValue || audit.displayValue || audit.score,
-              threshold: 0.9, // Default threshold
-              impact: score >= 4 ? 'low' : score >= 2.5 ? 'medium' : 'high',
-              description: audit.description,
-            };
-          })
-          .filter(Boolean); // Remove any null entries
-      };
-
-      // Generate mock insights (in a real app, this would use AI or more complex logic)
-      const generateInsights = (category: any, metrics: any[]) => {
-        const insights: string[] = [];
-        
-        // Add overall score insight
-        const avgScore = metrics.reduce((sum, m) => sum + m.score, 0) / metrics.length;
-        insights.push(
-          avgScore >= 4
-            ? `Excellent ${category} performance!`
-            : avgScore >= 2.5
-            ? `Good ${category} performance, but there's room for improvement.`
-            : `Needs improvement in ${category} performance.`
-        );
-
-        // Add specific insights based on metrics
-        metrics.forEach((metric) => {
-          if (metric.score < 2.5) {
-            insights.push(`Low score for ${metric.name}: ${metric.description}`);
-          }
-        });
-
-        return insights;
-      };
-
       // Process each category
-      const processCategory = (categoryId: string, name: string) => {
-        const category = lhr.categories[categoryId];
-        const metrics = processMetrics(category);
-        const score = category?.score ? category.score * 5 : 0;
-        
-        return {
-          score,
-          metrics,
-          insights: generateInsights(name, metrics),
-        };
+      const accessibility = processCategory('accessibility', 'Accessibility', lhr);
+      const performance = processCategory('performance', 'Performance', lhr);
+      const trust = processCategory('best-practices', 'Best Practices', lhr);
+      const agentReadiness = processCategory('seo', 'SEO', lhr);
+
+      if (!accessibility || !performance || !trust || !agentReadiness) {
+        throw new Error('Failed to process one or more audit categories');
+      }
+
+      const pillars = {
+        accessibility,
+        performance,
+        trust,
+        agentReadiness,
       };
 
       // Create audit results
       const auditResults: AuditResults = {
         id: Date.now().toString(),
-        url,
+        url: sanitizedUrl,
         timestamp: new Date(),
-        pillars: {
-          accessibility: processCategory('accessibility', 'accessibility'),
-          performance: processCategory('performance', 'performance'),
-          trust: processCategory('best-practices', 'trust'), // Using best-practices for trust
-          agentReadiness: processCategory('seo', 'agent readiness'), // Using SEO for agent readiness
-        },
-        overallScore: 0, // Will be calculated by the service
+        pillars,
+        overallScore: calculateOverallScore(pillars),
         recommendations: [],
+        status: 'completed',
+        aiAnalysis: {
+          generatedAt: new Date(),
+          insights: [],
+          recommendations: [],
+        },
       };
 
-      // Calculate overall score
-      const pillarScores = Object.values(auditResults.pillars).map(p => p.score);
-      auditResults.overallScore = parseFloat((pillarScores.reduce((a, b) => a + b, 0) / pillarScores.length).toFixed(1));
-
       return NextResponse.json(auditResults);
+    } catch (error) {
+      console.error('Audit error:', error);
+      const status = error instanceof Error && error.message.includes('timed out') ? 504 : 500;
+      return NextResponse.json(
+        { 
+          error: error instanceof Error ? error.message : 'An unknown error occurred',
+          ...(process.env.NODE_ENV === 'development' && { stack: error instanceof Error ? error.stack : undefined })
+        },
+        { status }
+      );
     } finally {
-      // Always close Chrome
-      await chrome.kill();
+      // Always close Chrome, even if there was an error
+      try {
+        await chrome.kill();
+      } catch (killError) {
+        console.error('Error killing Chrome process:', killError);
+      }
     }
   } catch (error) {
-    console.error('Audit error:', error);
+    console.error('Request validation error:', error);
+    
+    // Handle validation errors
+    if (error instanceof Error && error.message.includes('Validation failed')) {
+      try {
+        const validationError = JSON.parse(error.message);
+        return NextResponse.json(
+          { 
+            error: 'Validation failed',
+            details: validationError.errors 
+          },
+          { status: 400 }
+        );
+      } catch {
+        // Fall through to default error handling
+      }
+    }
+    
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'An unknown error occurred' },
+      { 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        ...(process.env.NODE_ENV === 'development' && { stack: error instanceof Error ? error.stack : undefined })
+      },
       { status: 500 }
     );
   }

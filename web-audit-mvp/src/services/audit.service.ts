@@ -1,4 +1,5 @@
-import { AuditRequest, AuditResults } from '@/types/audit';
+import type { AuditRequest, AuditResults } from '@/types/audit';
+import { generateAuditInsights } from './openai.service';
 
 const API_BASE_URL = '/api/audit';
 
@@ -17,7 +18,50 @@ export const auditService = {
       throw new Error(error.message || 'Failed to run audit');
     }
 
-    return response.json();
+    const results: AuditResults = await response.json();
+  
+    // Add AI analysis in the background
+    this.addAIAnalysis(results.id, results);
+  
+    return results;
+  },
+
+  async addAIAnalysis(auditId: string, results: AuditResults): Promise<void> {
+    try {
+      // Update status to processing
+      await fetch(`${API_BASE_URL}/${auditId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'processing' })
+      });
+
+      // Generate AI insights
+      const aiAnalysis = await generateAuditInsights(results);
+      
+      // Update with AI analysis
+      await fetch(`${API_BASE_URL}/${auditId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status: 'completed',
+          aiAnalysis: {
+            ...aiAnalysis,
+            generatedAt: new Date().toISOString()
+          }
+        })
+      });
+    } catch (error) {
+      console.error('Error in AI analysis:', error);
+      // Update status to failed
+      await fetch(`${API_BASE_URL}/${auditId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status: 'failed',
+          error: 'Failed to generate AI insights'
+        })
+      });
+    }
   },
 
   async getAuditResults(auditId: string): Promise<AuditResults> {

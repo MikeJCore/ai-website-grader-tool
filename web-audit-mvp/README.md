@@ -1,69 +1,144 @@
-# React + TypeScript + Vite
+# Web Performance Audit Tool
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern web application for auditing website performance, accessibility, and best practices using Lighthouse and Next.js.
 
-Currently, two official plugins are available:
+![Web Performance Audit Tool Screenshot](./public/screenshot.png)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## Expanding the ESLint configuration
+- **AI-Powered Insights**: Get intelligent analysis and recommendations based on audit results
+- **Performance Analysis**: Get detailed performance metrics using Lighthouse
+- **Accessibility Audits**: Check WCAG 2.1 AA + EAA compliance
+- **Trust & Security**: Verify security and privacy metrics
+- **Agent Readiness**: Analyze structured data and metadata
+- **Responsive Design**: Works on all device sizes
+- **Dark/Light Mode**: Built-in theme support
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Tech Stack
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- **Frontend**: Next.js 14 (App Router)
+- **Styling**: Tailwind CSS + shadcn/ui
+- **AI Integration**: OpenAI GPT-4 for intelligent insights
+- **Auditing**: Lighthouse
+- **Type Safety**: TypeScript
+- **Deployment**: Netlify (with Edge Functions support)
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+## Prerequisites
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- Node.js 18.0.0 or later
+- npm or yarn
+- Chrome/Chromium (for local development)
+
+## Getting Started
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/yourusername/web-audit-tool.git
+cd web-audit-tool
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 2. Install Dependencies
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+# or
+yarn install
 ```
+
+### 3. Environment Variables
+
+Copy the example environment file and update with your OpenAI API key:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Then edit `.env.local` and add your OpenAI API key:
+
+```env
+# For development
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Optional: Add your OpenAI API key for AI-powered insights
+# OPENAI_API_KEY=your_openai_api_key
+```
+
+### 4. Run the Development Server
+
+```bash
+npm run dev
+# or
+yarn dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Usage
+
+1. Enter a website URL in the input field (e.g., `https://example.com`)
+2. Click "Run Audit" to start the analysis
+3. View the detailed results including:
+   - Overall performance score
+   - Individual pillar scores (Accessibility, Trust, Performance, Agent Readiness)
+   - Key insights and recommendations
+   - Detailed metrics and suggestions for improvement
+
+## Deployment
+
+### Netlify
+
+This project is configured for deployment on Netlify with Edge Functions:
+
+1. Push your code to a Git repository
+2. Connect the repository to Netlify
+3. Set the build command: `npm run build` or `yarn build`
+4. Set the publish directory: `.next`
+5. Add environment variables in the Netlify dashboard
+
+### Vercel
+
+You can also deploy to Vercel:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyourusername%2Fweb-audit-tool)
+
+## Development
+
+### Available Scripts
+
+- `dev`: Start development server
+- `build`: Create production build
+- `start`: Start production server
+- `lint`: Run ESLint
+- `format`: Format code with Prettier
+
+### Directory Structure
+
+```
+src/
+  ├── app/               # App Router pages and layouts
+  ├── components/        # Reusable UI components
+  ├── hooks/             # Custom React hooks
+  ├── lib/               # Utility functions
+  ├── services/          # API services
+  └── types/             # TypeScript type definitions
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+## Acknowledgments
+
+- [Lighthouse](https://github.com/GoogleChrome/lighthouse) for the auditing engine
+- [Next.js](https://nextjs.org/) for the React framework
+- [shadcn/ui](https://ui.shadcn.com/) for the component library
+- [Tailwind CSS](https://tailwindcss.com/) for styling
