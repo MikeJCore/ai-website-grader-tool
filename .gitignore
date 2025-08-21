@@ -15,6 +15,8 @@ node_modules/
 /dist
 /dist-ssr
 /build
+/.next/
+/out/
 
 # Testing
 /coverage
@@ -43,3 +45,7 @@ lerna-debug.log*
 # Temp files
 .temp/
 .tmp/
+*.backup
+
+# Scripts (if they contain sensitive info or build artifacts)
+/scripts/

@@ -1,6 +1,7 @@
-import type * as Lighthouse from 'lighthouse';
 import * as chromeLauncher from 'chrome-launcher';
 import type { AuditRequest, AuditResults } from '@/types/audit';
+import { execSync } from 'child_process';
+import * as path from 'path';
 
 export const DEFAULT_THROTTLING = {
   rttMs: 40,
@@ -11,19 +12,90 @@ export const DEFAULT_THROTTLING = {
   uploadThroughputKbps: 0,
 };
 
-export async function launchChrome() {
-  return await chromeLauncher.launch({
-    chromeFlags: [
-      '--headless',
-      '--no-sandbox',
-      '--disable-gpu',
-      '--disable-dev-shm-usage',
-      '--disable-software-rasterizer',
-      '--mute-audio',
-      '--remote-debugging-port=0',
-      '--remote-debugging-address=0.0.0.0',
-    ],
-  });
+interface LaunchChromeOptions {
+  chromePath?: string;
+  chromeFlags?: string[];
+}
+
+async function findChromePath(): Promise<string> {
+  const platform = process.platform;
+  
+  if (platform === 'darwin') {
+    // Check default location on macOS
+    const macPath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+    try {
+      execSync(`ls -l "${macPath}"`);
+      return macPath;
+    } catch (e) {
+      throw new Error(`Chrome not found at ${macPath}. Please install Chrome or provide the correct path.`);
+    }
+  } else if (platform === 'win32') {
+    // Windows paths to check
+    const windowsPaths = [
+      path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'Google\\Chrome\\Application\\chrome.exe'),
+      path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)', 'Google\\Chrome\\Application\\chrome.exe'),
+    ];
+    
+    for (const winPath of windowsPaths) {
+      try {
+        execSync(`dir "${winPath}"`);
+        return winPath;
+      } catch (e) {
+        continue;
+      }
+    }
+    throw new Error('Chrome not found in default locations. Please install Chrome or provide the correct path.');
+  } else {
+    // Linux/Unix
+    try {
+      return execSync('which google-chrome').toString().trim();
+    } catch (e) {
+      throw new Error('Chrome not found in PATH. Please install Chrome or add it to your PATH.');
+    }
+  }
+}
+
+export async function launchChrome(options: LaunchChromeOptions = {}) {
+  const defaultFlags = [
+    '--headless=new',
+    '--no-sandbox',
+    '--disable-gpu',
+    '--disable-dev-shm-usage',
+    '--disable-software-rasterizer',
+    '--mute-audio',
+    '--remote-debugging-port=0',
+    '--remote-debugging-address=0.0.0.0',
+    '--disable-setuid-sandbox',
+    '--no-zygote',
+    '--single-process',
+    '--disable-web-security',
+    '--disable-features=IsolateOrigins,site-per-process',
+  ];
+
+  try {
+    // If no chromePath provided, try to find it
+    const chromePath = options.chromePath || await findChromePath();
+    console.log(`Using Chrome at: ${chromePath}`);
+
+    const launchOptions: chromeLauncher.Options = {
+      chromePath,
+      chromeFlags: [...new Set([...defaultFlags, ...(options.chromeFlags || [])])],
+      logLevel: 'info',
+    };
+
+    console.log('Launching Chrome with options:', {
+      chromePath,
+      chromeFlags: launchOptions.chromeFlags,
+    });
+
+    const chrome = await chromeLauncher.launch(launchOptions);
+    console.log(`Chrome launched on port: ${chrome.port}`);
+    return chrome;
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Failed to launch Chrome:', error);
+    throw new Error(`Failed to launch Chrome: ${errorMessage}`);
+  }
 }
 
 export function getLighthouseConfig(options: AuditRequest['options'] = {}) {
