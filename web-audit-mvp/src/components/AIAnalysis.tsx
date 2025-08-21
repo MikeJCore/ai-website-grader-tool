@@ -1,14 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Sparkles } from 'lucide-react';
-import type { AuditInsights } from '@/types/audit';
 
 interface AIAnalysisProps {
-  insights?: AuditInsights;
+  insights: string[];
+  recommendations: string[];
+  generatedAt: Date;
   status: 'pending' | 'processing' | 'completed' | 'failed';
 }
 
-export function AIAnalysis({ insights, status }: AIAnalysisProps) {
+export function AIAnalysis({ insights, recommendations, generatedAt, status }: AIAnalysisProps) {
   if (status === 'pending') return null;
 
   if (status === 'processing') {
@@ -44,7 +45,7 @@ export function AIAnalysis({ insights, status }: AIAnalysisProps) {
             AI-Powered Insights
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Generated on {new Date(insights.generatedAt).toLocaleString()}
+            Generated on {new Date(generatedAt).toLocaleString()}
           </p>
         </CardHeader>
         <CardContent>
@@ -52,7 +53,7 @@ export function AIAnalysis({ insights, status }: AIAnalysisProps) {
             <div>
               <h3 className="font-medium mb-2">Key Findings</h3>
               <ul className="list-disc pl-5 space-y-1">
-                {insights.insights.map((insight, i) => (
+                {insights.map((insight, i) => (
                   <li key={i} className="text-sm">
                     {insight}
                   </li>
@@ -63,7 +64,7 @@ export function AIAnalysis({ insights, status }: AIAnalysisProps) {
             <div>
               <h3 className="font-medium mb-2">Recommendations</h3>
               <ul className="list-disc pl-5 space-y-1">
-                {insights.recommendations.map((rec, i) => (
+                {recommendations.map((rec, i) => (
                   <li key={i} className="text-sm">
                     {rec}
                   </li>
@@ -71,11 +72,6 @@ export function AIAnalysis({ insights, status }: AIAnalysisProps) {
               </ul>
             </div>
 
-            {insights.summary && (
-              <div className="mt-4 p-4 bg-muted/50 rounded-md">
-                <p className="text-sm italic">{insights.summary}</p>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>

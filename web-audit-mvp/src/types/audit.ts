@@ -32,7 +32,7 @@ export interface AuditResults {
   };
   overallScore: number;
   recommendations: string[];
-  aiAnalysis?: AuditInsights;
+  aiAnalysis: AuditInsights;
   status: 'pending' | 'processing' | 'completed' | 'failed';
 }
 

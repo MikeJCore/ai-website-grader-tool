@@ -241,7 +241,9 @@ export default function Home() {
                 <h2 className="text-xl font-semibold">AI-Powered Analysis</h2>
               </div>
               <AIAnalysis 
-                insights={results.aiAnalysis} 
+                insights={results.aiAnalysis.insights} 
+                recommendations={results.aiAnalysis.recommendations}
+                generatedAt={results.aiAnalysis.generatedAt}
                 status={results.status || 'pending'} 
               />
             </div>

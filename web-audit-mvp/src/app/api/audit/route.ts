@@ -4,6 +4,7 @@ import type { RunnerResult } from 'lighthouse/types/externs';
 import type { AuditResults } from '@/types/audit';
 import { launchChrome, getLighthouseConfig, processCategory, calculateOverallScore } from '@/lib/lighthouse';
 import { validateAuditRequest, sanitizeUrl } from '@/lib/validation';
+import { generateAuditInsights } from '@/services/openai.service';
 
 // Dynamically import lighthouse to avoid ES modules issues
 const dynamicImport = new Function('modulePath', 'return import(modulePath)');
@@ -112,6 +113,23 @@ export async function POST(request: NextRequest) {
           recommendations: [],
         },
       };
+
+      // Generate AI insights if API key is available
+      if (process.env.OPENAI_API_KEY) {
+        try {
+          console.log('Generating AI insights...');
+          const aiData = await generateAuditInsights(auditResults);
+          auditResults.aiAnalysis.insights = aiData.insights;
+          auditResults.aiAnalysis.recommendations = aiData.recommendations;
+          auditResults.aiAnalysis.generatedAt = new Date();
+          console.log('AI insights generated successfully.');
+        } catch (aiError) {
+          console.error('Error generating AI insights:', aiError);
+          // Non-fatal error: we can still return the audit results without AI analysis
+          auditResults.aiAnalysis.insights = ['Failed to generate AI insights.'];
+          auditResults.aiAnalysis.recommendations = ['The audit was successful, but AI analysis failed. Please check server logs.'];
+        }
+      }
 
       return NextResponse.json(auditResults);
     } catch (error) {

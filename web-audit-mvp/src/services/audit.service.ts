@@ -1,46 +1,6 @@
 import type { AuditRequest, AuditResults } from '@/types/audit';
-import { generateAuditInsights } from './openai.service';
 
 const API_BASE_URL = '/api/audit';
-
-async function addAIAnalysis(auditId: string, results: AuditResults): Promise<void> {
-  try {
-    // Update status to processing
-    await fetch(`${API_BASE_URL}/${auditId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'processing' })
-    });
-    
-    // Generate AI insights
-    const aiAnalysis = await generateAuditInsights(results);
-    
-    // Update with AI analysis
-    await fetch(`${API_BASE_URL}/${auditId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        status: 'completed',
-        aiAnalysis: {
-          ...aiAnalysis,
-          generatedAt: new Date().toISOString()
-        }
-      })
-    });
-  } catch (error) {
-    console.error('AI analysis failed:', error);
-    
-    // Update status to failed
-    await fetch(`${API_BASE_URL}/${auditId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        status: 'failed',
-        error: 'Failed to generate AI analysis'
-      })
-    });
-  }
-}
 
 export const auditService = {
   async runAudit(request: AuditRequest): Promise<AuditResults> {
@@ -71,9 +31,6 @@ export const auditService = {
         console.error('Invalid response format:', data);
         throw new Error('Invalid server response');
       }
-    
-      // Start AI analysis in background
-      addAIAnalysis(data.id, data).catch(console.error);
       
       return data;
     } catch (error) {
