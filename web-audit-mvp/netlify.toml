@@ -2,9 +2,17 @@
 # It ensures that Netlify uses the correct command to build your Next.js site
 # and knows where to find the output files.
 
+# This file contains the build settings for your Netlify site.
+# It ensures that Netlify uses the correct command to build your Next.js site
+# and knows where to find the output files.
+
 [build]
-  # The command to build your site
+  # The command to build your site.
   command = "next build"
 
-  # The directory where the built site is located
+  # The directory where the built site is located.
   publish = ".next"
+
+  # The base directory where the site's code is located.
+  # This is crucial because your project is in a subdirectory.
+  base = "web-audit-mvp"
