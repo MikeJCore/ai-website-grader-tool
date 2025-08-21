@@ -1,4 +1,5 @@
-import * as chromeLauncher from 'chrome-launcher';
+import puppeteer from 'puppeteer-core';
+import type { Browser } from 'puppeteer-core';
 import type { AuditRequest, AuditResults } from '@/types/audit';
 import { execSync } from 'child_process';
 import * as path from 'path';
@@ -55,45 +56,59 @@ async function findChromePath(): Promise<string> {
   }
 }
 
-export async function launchChrome(options: LaunchChromeOptions = {}) {
+export async function launchChrome(options: LaunchChromeOptions = {}): Promise<{ port: number; kill: () => Promise<void>; browser: Browser }> {
   const defaultFlags = [
     '--headless=new',
     '--no-sandbox',
     '--disable-gpu',
     '--disable-dev-shm-usage',
-    '--disable-software-rasterizer',
-    '--mute-audio',
-    '--remote-debugging-port=0',
-    '--remote-debugging-address=0.0.0.0',
     '--disable-setuid-sandbox',
     '--no-zygote',
-    '--single-process',
+    '--disable-infobars',
+    '--disable-background-networking',
+    '--disable-default-apps',
+    '--disable-extensions',
+    '--disable-sync',
+    '--disable-translate',
     '--disable-web-security',
-    '--disable-features=IsolateOrigins,site-per-process',
+    '--mute-audio',
+    '--no-first-run',
+    '--safebrowsing-disable-auto-update',
   ];
 
+  if (process.platform === 'darwin') {
+    defaultFlags.push('--use-mock-keychain');
+  }
+
   try {
-    // If no chromePath provided, try to find it
     const chromePath = options.chromePath || await findChromePath();
     console.log(`Using Chrome at: ${chromePath}`);
 
-    const launchOptions: chromeLauncher.Options = {
-      chromePath,
-      chromeFlags: [...new Set([...defaultFlags, ...(options.chromeFlags || [])])],
-      logLevel: 'info',
-    };
-
-    console.log('Launching Chrome with options:', {
-      chromePath,
-      chromeFlags: launchOptions.chromeFlags,
+    const browser = await puppeteer.launch({
+      executablePath: chromePath,
+      args: [...new Set([...defaultFlags, ...(options.chromeFlags || [])])],
     });
 
-    const chrome = await chromeLauncher.launch(launchOptions);
-    console.log(`Chrome launched on port: ${chrome.port}`);
-    return chrome;
+    const wsEndpoint = browser.wsEndpoint();
+    const port = parseInt(new URL(wsEndpoint).port, 10);
+
+    if (isNaN(port)) {
+      await browser.close();
+      throw new Error('Failed to extract port from Puppeteer browser endpoint.');
+    }
+
+    console.log(`Chrome launched via Puppeteer on port: ${port}`);
+
+    return {
+      port,
+      kill: async () => {
+        await browser.close();
+      },
+      browser,
+    };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Failed to launch Chrome:', error);
+    console.error('Failed to launch Chrome with Puppeteer:', error);
     throw new Error(`Failed to launch Chrome: ${errorMessage}`);
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,7 +71,10 @@ export default function Home() {
                   placeholder="https://example.com" 
                   className="flex-1"
                   value={url}
-                  onChange={(e) => setUrl(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    const target = e.target as HTMLInputElement;
+                    setUrl(target.value);
+                  }}
                   disabled={isLoading}
                   required
                 />

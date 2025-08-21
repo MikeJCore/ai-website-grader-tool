@@ -19,68 +19,9 @@ const loadLighthouse = async () => {
 // Maximum time to wait for Lighthouse to complete (in milliseconds)
 const LIGHTHOUSE_TIMEOUT = 120000; // 2 minutes
 
-// Check if Chrome is installed
-const isChromeInstalled = async (): Promise<boolean> => {
-  const { execSync } = require('child_process');
-  const platform = process.platform;
-  
-  if (platform === 'win32') {
-    try {
-      // Windows
-      execSync('where chrome');
-      return true;
-    } catch (error) {
-      console.error('Chrome not found in Windows PATH');
-      return false;
-    }
-  } else if (platform === 'darwin') {
-    // macOS - check common locations
-    const chromePath = '/Applications/Google Chrome.app';
-    try {
-      // Verify Chrome is in the expected location
-      execSync(`test -d "${chromePath}"`);
-      
-      // Add Chrome to PATH if not already there
-      const chromeBinPath = '/Applications/Google Chrome.app/Contents/MacOS';
-      const currentPath = process.env.PATH || '';
-      if (!currentPath.includes(chromeBinPath)) {
-        process.env.PATH = `${currentPath}:${chromeBinPath}`;
-      }
-      
-      // Verify the Chrome binary is executable
-      execSync('test -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"');
-      
-      console.log(`Found Chrome at: ${chromePath}`);
-      return true;
-    } catch (e) {
-      console.error(`Error accessing Chrome at ${chromePath}:`, e);
-      console.error('Please ensure Google Chrome is installed from https://www.google.com/chrome/');
-      return false;
-    }
-  } else {
-    // Linux
-    try {
-      execSync('which google-chrome');
-      return true;
-    } catch (error) {
-      console.error('Chrome not found in Linux PATH');
-      return false;
-    }
-  }
-};
-
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  // Check if Chrome is installed
-  if (!(await isChromeInstalled())) {
-    return NextResponse.json(
-      { 
-        error: 'Chrome is required but not found. Please install Chrome browser on your system.' 
-      },
-      { status: 500 }
-    );
-  }
 
   try {
     // Parse and validate request body
@@ -95,80 +36,20 @@ export async function POST(request: NextRequest) {
     
     console.log(`Starting audit for URL: ${sanitizedUrl}`);
     
-    // Launch Chrome with explicit path
-    let chrome;
+    let chrome: Awaited<ReturnType<typeof launchChrome>> | undefined;
     try {
       console.log('Attempting to launch Chrome...');
-      const chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-      console.log(`Using Chrome path: ${chromePath}`);
-      
-      // Verify Chrome exists and is executable
-      const { execSync } = require('child_process');
-      let chromeVersion = '';
-      try {
-        chromeVersion = execSync(`"${chromePath}" --version`).toString().trim();
-        console.log('Chrome version:', chromeVersion);
-      } catch (e) {
-        const error = e as Error;
-        console.error('Failed to get Chrome version:', error);
-        throw new Error(`Chrome not found or not executable at ${chromePath}. Please ensure Chrome is installed. Error: ${error.message}`);
-      }
-      
-      try {
-        console.log('Launching Chrome with flags...');
-        chrome = await launchChrome({
-          chromePath,
-          chromeFlags: [
-            '--headless=new',
-            '--no-sandbox',
-            '--disable-gpu',
-            '--disable-dev-shm-usage',
-            '--remote-debugging-port=0',
-            '--remote-debugging-address=0.0.0.0',
-            '--disable-setuid-sandbox',
-            '--no-zygote',
-            '--single-process',
-            '--disable-web-security',
-            '--disable-features=IsolateOrigins,site-per-process',
-            '--disable-software-rasterizer',
-            '--disable-breakpad',
-            '--disable-client-side-phishing-detection',
-            '--disable-default-apps',
-            '--disable-extensions',
-            '--disable-hang-monitor',
-            '--disable-popup-blocking',
-            '--disable-prompt-on-repost',
-            '--disable-sync',
-            '--disable-translate',
-            '--metrics-recording-only',
-            '--no-first-run',
-            '--safebrowsing-disable-auto-update',
-            '--enable-automation',
-            '--password-store=basic',
-            '--use-mock-keychain',
-            '--mute-audio',
-            '--no-default-browser-check',
-            '--no-sandbox-and-elevated',
-            '--window-size=1280,1696'  // Set a default window size
-          ]
-        });
-        console.log('Chrome launched successfully');
-      } catch (launchError) {
-        console.error('Chrome launch error details:', {
-          error: launchError,
-          chromePath,
-          chromeVersion,
-          env: process.env.PATH
-        });
-        throw launchError;
-      }
+      chrome = await launchChrome();
       console.log('Chrome launched successfully');
     } catch (chromeError) {
       console.error('Failed to launch Chrome:', chromeError);
       return NextResponse.json(
         { 
           error: `Failed to launch Chrome: ${chromeError instanceof Error ? chromeError.message : 'Unknown error'}`,
-          details: process.env.NODE_ENV === 'development' ? chromeError : undefined
+          details: process.env.NODE_ENV === 'development' ? { 
+            message: chromeError instanceof Error ? chromeError.message : String(chromeError),
+            stack: chromeError instanceof Error ? chromeError.stack : undefined
+          } : undefined
         },
         { status: 500 }
       );
@@ -184,7 +65,7 @@ export async function POST(request: NextRequest) {
       // Run Lighthouse with timeout
       const result = await Promise.race([
         lighthouse(sanitizedUrl, {
-          port: chrome.port,
+          port: chrome!.port,
           output: 'json',
           logLevel: 'info',
         }, config) as Promise<RunnerResult>,
@@ -245,10 +126,12 @@ export async function POST(request: NextRequest) {
       );
     } finally {
       // Always close Chrome, even if there was an error
-      try {
-        await chrome.kill();
-      } catch (killError) {
-        console.error('Error killing Chrome process:', killError);
+      if (chrome) {
+        try {
+          await chrome.kill();
+        } catch (killError) {
+          console.error('Error killing Chrome process:', killError);
+        }
       }
     }
   } catch (error) {
@@ -265,8 +148,9 @@ export async function POST(request: NextRequest) {
           },
           { status: 400 }
         );
-      } catch {
+      } catch (parseError) {
         // Fall through to default error handling
+        console.error('Failed to parse validation error:', parseError);
       }
     }
     
