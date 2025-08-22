@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && next export -o out",
+    "postbuild": "cp -r public/. out/",
     "start": "next start",
     "lint": "next lint",
     "test:audit": "node --loader ts-node/esm scripts/simple-test.ts",
@@ -25,6 +26,7 @@
     "openai": "^5.13.1",
     "puppeteer": "^24.17.0",
     "puppeteer-core": "^24.17.0",
+    "chrome-aws-lambda": "^10.1.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "recharts": "^3.1.2",

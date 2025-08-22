@@ -1,0 +1,23 @@
+[build]
+  # The base directory where the site's code is located
+  base = "web-audit-mvp"
+  
+  # The command to build your site
+  command = "cd web-audit-mvp && npm install && npm run build"
+  
+  # The directory where the built site is located
+  publish = "web-audit-mvp/out"
+
+# Required for Next.js API routes to work on Netlify
+[[redirects]]
+  from = "/api/audit"
+  to = "/.netlify/functions/audit"
+  status = 200
+  force = false
+
+# Handle client-side routing - let Next.js handle all other routes
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false

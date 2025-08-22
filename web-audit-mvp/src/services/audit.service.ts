@@ -1,11 +1,17 @@
 import type { AuditRequest, AuditResults } from '@/types/audit';
 
-const API_BASE_URL = '/api/audit';
+// Use absolute URL in production, relative in development
+const getApiBaseUrl = () => {
+  if (process.env.NODE_ENV === 'production') {
+    return `${window.location.origin}/api/audit`;
+  }
+  return '/api/audit';
+};
 
 export const auditService = {
   async runAudit(request: AuditRequest): Promise<AuditResults> {
     try {
-      const response = await fetch(API_BASE_URL, {
+      const response = await fetch(getApiBaseUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
@@ -41,7 +47,7 @@ export const auditService = {
 
   async getAuditResults(auditId: string): Promise<AuditResults> {
     try {
-      const response = await fetch(`${API_BASE_URL}/${auditId}`);
+      const response = await fetch(`${getApiBaseUrl()}/${auditId}`);
       
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
