@@ -17,8 +17,6 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-  [plugins.inputs]
-    functions_src = "netlify/functions"
 
 [[redirects]]
   from = "/*"
