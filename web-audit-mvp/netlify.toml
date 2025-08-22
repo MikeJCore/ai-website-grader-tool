@@ -11,17 +11,14 @@
   command = "npm run build"
 
   # The directory where the built site is located
-  publish = "out"
+  publish = ".next"
 
   # The base directory where the site's code is located
   base = "web-audit-mvp"
 
 # Required for Next.js API routes to work on Netlify
-[[redirects]]
-  from = "/api/audit"
-  to = "/.netlify/functions/audit"
-  status = 200
-  force = false
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
 
 # Handle client-side routing - let Next.js handle all other routes
 [[redirects]]
@@ -29,3 +26,9 @@
   to = "/index.html"
   status = 200
   force = false
+
+# Cache settings
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
