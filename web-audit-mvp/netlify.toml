@@ -7,28 +7,30 @@
 # and knows where to find the output files.
 
 [build]
-  # The command to build your site
   command = "npm run build"
-
-  # The directory where the built site is located
   publish = ".next"
-
-  # The base directory where the site's code is located
   base = "web-audit-mvp"
 
-# Required for Next.js API routes to work on Netlify
+[build.environment]
+  NEXT_TELEMETRY_DISABLED = "1"
+  NODE_VERSION = "20"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+  [plugins.inputs]
+    functions_src = "netlify/functions"
 
-# Handle client-side routing - let Next.js handle all other routes
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
   force = false
 
-# Cache settings
 [[headers]]
   for = "/*"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
